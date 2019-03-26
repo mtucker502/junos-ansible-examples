@@ -5,7 +5,7 @@ These are a collection of playbooks for Junos Space using the URI module.
 ## Examples
 
 ```
-ansible-playbook -i hosts space-add-device.yml -e "@devices.yml"
+$ ansible-playbook -i hosts space-add-device.yml -e "@devices.yml"
 ```
 
 ```
