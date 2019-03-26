@@ -1,0 +1,121 @@
+---
+- name: Space API Example
+  hosts: all
+  connection: local
+  gather_facts: no
+
+  vars:
+    space_api_uri: "https://{{ ansible_host }}/api"
+    space_api_login_uri : "space/user-management/login"
+    ssl_verification: no
+
+  tasks:
+    - name: Login to Junos Space
+      uri:
+        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
+        method: POST
+        validate_certs: "{{ ssl_verification }}"
+        status_code: 200
+        return_content: yes
+        force_basic_auth: yes
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        headers:
+          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
+      register: response
+
+    - name: Print login results
+      debug:
+        var: response.json
+        verbosity: 1
+
+    - set_fact:
+        loginfacts: "{{ response }}" # quotes are required or will fail
+
+# check if hornetq exists first and then use when statement
+
+    - name: Create Queue
+      uri:
+        url: "{{ space_api_uri }}/hornet-q/queues"
+        method: POST
+        validate_certs: "{{ ssl_verification }}"
+        status_code: 201, 412 #412 can be removed once we have queue existence check
+        return_content: yes
+        force_basic_auth: yes
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        headers:
+          content-type: application/hornetq.jms.queue+xml
+        body: <queue name="{{ queue_name }}"><durable>false</durable></queue>
+      register: response # not required. Only returns status code. No body
+
+# Create discovery job
+    - name: Create Discovery Job
+      uri:
+        url: "{{ space_api_uri }}/space/device-management/discover-devices?queue=http://127.0.0.1:8080/api/hornet-q/queues/jms.queue.{{ queue_name }}"
+        method: POST
+        validate_certs: "{{ ssl_verification }}"
+        status_code: 202
+        return_content: yes
+        force_basic_auth: yes
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        headers:
+          #Cookie: "{{ loginfacts.set_cookie }}" # Doesn't work. Possible issue with having to connect to the queue?
+          Accept: application/vnd.net.juniper.space.device-management.discover-devices+json;version=1
+          content-type: application/vnd.net.juniper.space.device-management.discover-devices+xml;version=1;charset=UTF-8
+        body: >
+          <?xml version="1.0" encoding="UTF-8"?>
+          <systemDiscoveryRule>
+          <ipAddressDiscoveryTarget>
+          <exclude>false</exclude>
+          <ipAddress>{{ device_ip }}</ipAddress>
+          </ipAddressDiscoveryTarget>
+          <usePing>true</usePing>
+          <useSnmp>false</useSnmp>
+          <manageDiscoveredSystemsFlag>true</manageDiscoveredSystemsFlag>
+          <sshCredential>
+          <userName>{{ device_user }}</userName>
+          <password>{{ device_password }}</password>
+          </sshCredential>
+          </systemDiscoveryRule>
+
+      register: response
+
+    - name: print response
+      debug:
+        var: response.json
+        verbosity: 1
+
+    - name: Check if Discovery Job is DONE
+      uri:
+        url: "{{ space_api_uri }}/space/job-management/jobs/{{ response.json.task.id }}"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.job-management.job+json;version=3
+          Cookie: "{{ loginfacts.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: response
+      until: response.json.job["job-state"] == "DONE"
+      retries: 5
+      delay: 10
+      failed_when: response.json.job["job-status"] == "FAILURE"
+
+    - name: Get Device List
+      uri:
+        url: "{{ space_api_uri }}/space/device-management/devices"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.device-management.devices+json;version=2
+          Cookie: "{{ loginfacts.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: response
+
+    - name: print response
+      debug:
+        var: response.json
+        verbosity: 1

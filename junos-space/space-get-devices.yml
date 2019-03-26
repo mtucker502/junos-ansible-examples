@@ -1,0 +1,48 @@
+---
+- name: Space API Example
+  hosts: all
+  connection: local
+  gather_facts: no
+
+  vars:
+    space_api_uri: "https://{{ ansible_host }}/api"
+    space_api_login_uri : "space/user-management/login"
+    ssl_verification: no
+
+  tasks:
+    - name: Login to Junos Space
+      uri:
+        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
+        method: POST
+        force_basic_auth: yes
+        status_code: 302, 200
+        validate_certs: "{{ ssl_verification }}"
+        follow_redirects: all
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
+      register: login
+
+    - name: Print login results
+      debug:
+        var: login.json
+        verbosity: 1
+
+    - name: Get all devices
+      uri:
+        url: "{{ space_api_uri }}/space/device-management/devices"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.device-management.devices+json;version=2
+          Cookie: "{{ login.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+    - name: print results
+      debug:
+        var: result.json
+        verbosity: 1
