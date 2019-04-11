@@ -1,0 +1,31 @@
+---
+# To run this playbook with one command:
+# ansible-playbook -i ",172.25.84.62" pb.run.command.yml -e 'SHOW_COMMAND=["show system storage"]'
+
+# To run this playbook with multiple commands:
+# ansible-playbook -i ",172.25.84.62" pb.run.command.yml -e 'SHOW_COMMAND=["show system storage","show version"]'
+
+# To run this playbook through Docker:
+# docker run -it --rm -v $PWD:/project juniper/pyez-ansible ansible-playbook -i ",172.25.84.62" pb.run.command.yml -e 'SHOW_COMMAND=["show system storage","show version"]'
+
+  - name: Run Command
+    hosts: all
+    connection: local
+    gather_facts: no
+    roles:
+      - Juniper.junos
+
+    vars:
+      - ADM_USER: root
+      - ADM_PASS: Juniper123
+
+    tasks:
+      - name: Run Commands
+        juniper_junos_command:
+          user: "{{ ADM_USER }}"
+          passwd: "{{ ADM_PASS }}"
+          host: "{{ inventory_hostname }}"
+          port: 22
+          commands: "{{ SHOW_COMMAND }}"
+          formats: text
+          dest: "{{playbook_dir}}/{{ inventory_hostname }}.output.txt"
