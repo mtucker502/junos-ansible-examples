@@ -5,7 +5,7 @@
   gather_facts: no
 
   vars:
-    space_api_uri: "https://{{ ansible_host }}/api"
+    space_api_uri: "https://{{ ansible_host }}:{{ space_api_port }}/api"
     space_api_login_uri : "space/user-management/login"
     ssl_verification: no
 

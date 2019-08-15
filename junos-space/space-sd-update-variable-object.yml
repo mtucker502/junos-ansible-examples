@@ -1,0 +1,218 @@
+---
+- name: Space API Example
+  hosts: all
+  connection: local
+  gather_facts: no
+
+  vars:
+    space_api_uri: "https://{{ ansible_host }}:{{ space_api_port }}/api"
+    space_api_login_uri : "space/user-management/login"
+    ssl_verification: no
+    CONTEXT_DEVICE_NAME: vSRX-addr-0
+    CONTEXT_ADDRESS: 1.1.1.1
+    CONTEXT_ADDRESS_NAME: vsrx1-dns
+    VARIABLE_OBJECT_NAME: dns-object
+
+  tasks:
+    - name: Login to Junos Space
+      uri:
+        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
+        method: POST
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        follow_redirects: all
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
+      register: login
+
+    - name: Print login results
+      debug:
+        var: login.json
+        verbosity: 2
+
+    - name: Get SD Device ID
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/device-management/devices?filter=(name%20eq%20'{{ CONTEXT_DEVICE_NAME }}')"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          Accept: application/vnd.juniper.sd.device-management.devices+json;version=2;q=0.02
+          Cookie: "{{ login.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+
+    - name: Saving SD Device ID
+      set_fact:
+        CONTEXT_DEVICE_ID: "{{ result.json.devices.device[0].id }}"
+
+    - name: Print SD Device ID
+      debug:
+        var: CONTEXT_DEVICE_ID
+
+    - name: Creating Address Object
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/addresses"
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        status_code: 200, 500
+        headers:
+          Accept: application/vnd.juniper.sd.address-management.address+json;version=1;q=0.01
+          Content-Type: application/vnd.juniper.sd.address-management.address+json;version=1;charset=UTF-8
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+          "address" : {
+          "name" : "{{ CONTEXT_ADDRESS_NAME }}",
+          "address-type" : "IPADDRESS",
+          "ip-address" : "{{ CONTEXT_ADDRESS }}",
+          "address-version" : "IPV4",
+          "definition-type" : "CUSTOM"
+          }
+          }
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+    - name: Get Address Object ID
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/addresses?filter=(name%20eq%20'{{ CONTEXT_ADDRESS_NAME }}')"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          Accept: application/vnd.juniper.sd.address-management.address-refs+json;version=1;q=0.01
+          Cookie: "{{ login.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: tempresult
+      when: result.status == 500
+
+    - name: Save Context Address ID
+      set_fact:
+        CONTEXT_ADDRESS_ID: "{{ tempresult.json.addresses.address[0].id }}"
+      when: tempresult.status == 500
+
+    - name: Save Context Address ID
+      set_fact:
+        CONTEXT_ADDRESS_ID: "{{ result.json.address.id }}"
+      when: result.status == 200
+
+    - name: Print Context Address ID
+      debug:
+        var: CONTEXT_ADDRESS_ID
+
+    - name: Get Variable Object ID
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/variable-management/variable-definitions?filter=(name%20eq%20'{{ VARIABLE_OBJECT_NAME }}')"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        status_code: 200
+        headers:
+          Accept: application/vnd.juniper.sd.variable-management.variable-definitions+json;version=1;q=0.01
+          Cookie: "{{ login.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+    - name: Save Variable Object ID
+      set_fact:
+        VARIABLE_OBJECT_ID: "{{ result.json['variable-definitions']['variable-definition'][0].id }}"
+
+    - name: Print Variable Object ID
+      debug:
+        var: VARIABLE_OBJECT_ID
+
+    - name: Get Variable Object Config
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/variable-management/variable-definitions/{{ VARIABLE_OBJECT_ID }}"
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        status_code: 200
+        headers:
+          Accept: application/vnd.juniper.sd.variable-management.variable-definition+json;version=1;q=0.01
+          Cookie: "{{ login.set_cookie }}"
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+    - name: Save Variable Object Config
+      set_fact:
+        VARIABLE_OBJECT_CONFIG: "{{ result.json['variable-definition'] }}"
+
+    - name: Print Variable Object Config
+      debug:
+        var: VARIABLE_OBJECT_CONFIG
+#        verbosity: 2
+
+    - name: Build New Context Data-Object
+      set_fact:
+        NEW_CONTEXT_CONFIG:
+          - >
+            {
+                "device": {
+                    "moid": "{{ CONTEXT_DEVICE_ID }}",
+                    "name": "{{ CONTEXT_DEVICE_NAME }}"
+                },
+                "variable-value-detail": {
+                    "name": "{{ CONTEXT_ADDRESS_NAME }}",
+                    "variable-value": "{{ CONTEXT_ADDRESS_ID }}"
+                }
+            }
+
+    - debug:
+        var: NEW_CONTEXT_CONFIG
+        verbosity: 2
+
+    - name: Append New Context Config
+      set_fact:
+        NEW_CONTEXT_LIST: "{{ VARIABLE_OBJECT_CONFIG['variable-values-list']['variable-values'] + NEW_CONTEXT_CONFIG }}"
+
+    - debug:
+        var: NEW_CONTEXT_LIST
+        verbosity: 2
+
+    - name: Build New Variable Object Config
+      set_fact:
+        NEW_VARIABLE_CONFIG: >
+          {
+              "variable-definition": {
+                  "default-value-detail": {
+                      "default-name": "{{ VARIABLE_OBJECT_CONFIG['default-value-detail']['default-name'] }}",
+                      "default-value": "{{ VARIABLE_OBJECT_CONFIG['default-value-detail']['default-value'] }}"
+                  },
+                  "name": "{{ VARIABLE_OBJECT_NAME }}",
+                  "edit-version": "{{ VARIABLE_OBJECT_CONFIG['edit-version'] }}",
+                  "type": "ADDRESS",
+                  "variable-values-list": {
+                      "variable-values": {{ NEW_CONTEXT_LIST }}
+                  }
+              }
+          }
+    - debug:
+        var: NEW_VARIABLE_CONFIG
+
+    - name: Update Variable Object With New Context
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/variable-management/variable-definitions/{{ VARIABLE_OBJECT_ID }}"
+        method: PUT
+        follow_redirects: all
+        return_content: yes
+        status_code: 200
+        headers:
+          Accept: application/vnd.juniper.sd.variable-management.variable-definition+json;version=1;q=0.01
+          Content-type: application/vnd.juniper.sd.variable-management.variable-definition+json;version=1;charset=UTF-8
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: "{{ NEW_VARIABLE_CONFIG }}"
+        validate_certs:  "{{ ssl_verification }}"
+        register: result
+
+    - name: print results
+      debug:
+        var: result.content
