@@ -1,0 +1,152 @@
+---
+- name: Space API Example
+  hosts: all
+  connection: local
+  gather_facts: no
+
+  vars:
+    space_api_uri: "https://{{ ansible_host }}:{{ space_api_port }}/api"
+    space_api_login_uri : "space/user-management/login"
+    ssl_verification: no
+
+  tasks:
+    - name: Login to Junos Space
+      uri:
+        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
+        method: POST
+        force_basic_auth: yes
+        status_code: 302, 200
+        validate_certs: "{{ ssl_verification }}"
+        follow_redirects: all
+        user: "{{ space_auth_user }}"
+        password: "{{ space_auth_password }}"
+        return_content: yes
+        headers:
+          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
+      register: login
+
+    - name: Create DNS1 Address Object
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/v5/address"
+        method: POST
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        return_content: yes
+        headers:
+          Accept: application/json
+          Content-Type: application/json
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+          "address": {
+            "definition_type": "CUSTOM",
+            "associated_metadata": "",
+            "name": "dns1",
+            "description": "",
+            "address_type": "IPADDRESS",
+            "address_version": "IPV4",
+            "host_name": "",
+            "ip_address": "8.8.8.8"
+            }
+          }
+      register: dns1 #need 'name' and 'uuid' for address-group
+
+    - name: Create DNS Address Group
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/v5/address"
+        method: POST
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        return_content: yes
+        headers:
+          Accept: application/json
+          Content-Type: application/json
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+          "address": {
+            "definition_type": "CUSTOM",
+            "associated_metadata": "",
+            "name": "google-dns",
+            "description": "",
+            "address_type": "GROUP",
+            "address_refs": [{
+              "name": "{{ dns1.json.address.name }}",
+              "uuid": "{{ dns1.json.address.uuid }}"
+              }]
+            }
+          }
+      register: address_group
+
+    - name: Create DNS2 Address Object
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/v5/address"
+        method: POST
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        return_content: yes
+        headers:
+          Accept: application/json
+          Content-Type: application/json
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+          "address": {
+            "definition_type": "CUSTOM",
+            "associated_metadata": "",
+            "name": "dns2",
+            "description": "",
+            "address_type": "IPADDRESS",
+            "address_version": "IPV4",
+            "host_name": "",
+            "ip_address": "8.8.4.4"
+            }
+          }
+      register: dns2 #need 'name' and 'uuid' for address-group
+
+    - name: Add DNS2 to Address Group
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/v5/address/{{ address_group.json.address.uuid }}"
+        method: PUT
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        return_content: yes
+        headers:
+          Accept: application/json
+          Content-Type: application/json
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+            "address": {
+              "definition_type": "CUSTOM",
+              "uuid": "{{ address_group.json.address.uuid }}",
+              "addr_name": "google-dns",
+              "name": "google-dns",
+              "edit_version": "{{ address_group.json.address.edit_version }}",
+              "address_refs": [{
+                "name": "{{ dns1.json.address.name }}",
+                "uuid": "{{ dns1.json.address.uuid }}"
+              }, {
+                "name": "{{ dns2.json.address.name }}",
+                "uuid": "{{ dns2.json.address.uuid }}"
+              }],
+              "address_type": "GROUP",
+              "description": "",
+              "address_version": "IPV4",
+              "uri": "/api/juniper/sd/address-management/v5/address/458754",
+              "id": "{{ address_group.json.address.uuid }}"
+            }
+          }
+
+    - name: Logout from Junos Space
+      uri:
+        url: "{{ space_api_uri }}/space/user-management/logout"
+        method: POST
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        headers:
+          Cookie: "{{ login.set_cookie }}"
