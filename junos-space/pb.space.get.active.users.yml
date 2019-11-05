@@ -1,5 +1,5 @@
 ---
-- name: Space API Example
+- name: Space API Example - Get Active Users
   hosts: all
   connection: local
   gather_facts: no
@@ -46,3 +46,12 @@
       debug:
         var: result.json
         verbosity: 1
+
+    - name: Logout from Junos Space
+      uri:
+        url: "{{ space_api_uri }}/space/user-management/logout"
+        method: POST
+        status_code: 200
+        validate_certs: "{{ ssl_verification }}"
+        headers:
+          Cookie: "{{ login.set_cookie }}"

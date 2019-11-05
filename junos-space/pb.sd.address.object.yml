@@ -1,5 +1,5 @@
 ---
-- name: Space API Example
+- name: SD API Example - Address Group
   hosts: all
   connection: local
   gather_facts: no
