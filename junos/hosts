@@ -1,0 +1,8 @@
+[vsrx]
+vsrx1 ansible_port=32011
+vsrx2 ansible_port=32015
+
+[vsrx:vars]
+ansible_host=66.129.235.7
+ansible_user=jcluser
+ansible_password="Juniper!1"

@@ -1,0 +1,25 @@
+---
+
+- name: Install Config
+  hosts: all
+  connection: local
+  gather_facts: no
+  roles:
+    - Juniper.junos
+
+  tasks:
+    - name: Install Config
+      junos_install_config:
+        user: "{{ ansible_user }}"
+        passwd: "{{ ansible_password }}"
+        host: "{{ ansible_host }}"
+        port: "{{ ansible_port }}"
+        logfile: "{{playbook_dir}}/{{ inventory_hostname }}.install.config.log"
+        replace: no
+        overwrite: no
+        ignore_warning: true
+        file: "{{playbook_dir}}/{{ item }}"
+        comment: "configured by ansible"
+        diffs_file: "{{playbook_dir}}/{{ inventory_hostname }}.diff.txt"
+      with_items:
+        - "config.set"
