@@ -1,0 +1,11 @@
+- name: Get all devices
+  uri:
+    url: "{{ space_api_uri }}/space/device-management/devices"
+    method: GET
+    follow_redirects: all
+    return_content: yes
+    headers:
+      Accept: application/vnd.net.juniper.space.device-management.devices+json;version=2
+      Cookie: "{{ login.set_cookie }}"
+    validate_certs:  "{{ ssl_verification }}"
+  register: result

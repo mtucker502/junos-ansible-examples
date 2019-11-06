@@ -10,27 +10,9 @@
     ssl_verification: no
 
   tasks:
-    - name: Login to Junos Space
-      uri:
-        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
-        method: POST
-        validate_certs: "{{ ssl_verification }}"
-        status_code: 200
-        return_content: yes
-        force_basic_auth: yes
-        user: "{{ space_auth_user }}"
-        password: "{{ space_auth_password }}"
-        headers:
-          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
-      register: response
-
-    - name: Print login results
-      debug:
-        var: response.json
-        verbosity: 1
-
-    - set_fact:
-        loginfacts: "{{ response }}" # quotes are required or will fail
+    - import_role:
+        name: junos_space
+        tasks_from: login
 
 # check if hornetq exists first and then use when statement
 
@@ -61,7 +43,7 @@
         user: "{{ space_auth_user }}"
         password: "{{ space_auth_password }}"
         headers:
-          #Cookie: "{{ loginfacts.set_cookie }}" # Doesn't work. Possible issue with having to connect to the queue?
+          #Cookie: "{{ login.set_cookie }}" # Doesn't work. Possible issue with having to connect to the queue?
           Accept: application/vnd.net.juniper.space.device-management.discover-devices+json;version=1
           content-type: application/vnd.net.juniper.space.device-management.discover-devices+xml;version=1;charset=UTF-8
         body: >
@@ -95,7 +77,7 @@
         return_content: yes
         headers:
           Accept: application/vnd.net.juniper.space.job-management.job+json;version=3
-          Cookie: "{{ loginfacts.set_cookie }}"
+          Cookie: "{{ login.set_cookie }}"
         validate_certs:  "{{ ssl_verification }}"
       register: response
       until: response.json.job["job-state"] == "DONE"
@@ -111,7 +93,7 @@
         return_content: yes
         headers:
           Accept: application/vnd.net.juniper.space.device-management.devices+json;version=2
-          Cookie: "{{ loginfacts.set_cookie }}"
+          Cookie: "{{ login.set_cookie }}"
         validate_certs:  "{{ ssl_verification }}"
       register: response
 
@@ -120,11 +102,6 @@
         var: response.json
         verbosity: 1
 
-    - name: Logout from Junos Space
-      uri:
-        url: "{{ space_api_uri }}/space/user-management/logout"
-        method: POST
-        status_code: 200
-        validate_certs: "{{ ssl_verification }}"
-        headers:
-          Cookie: "{{ login.set_cookie }}"
+    - import_role:
+        name: junos_space
+        tasks_from: logout

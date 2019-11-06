@@ -1,0 +1,14 @@
+- name: Login to Junos Space
+  uri:
+    url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
+    method: POST
+    force_basic_auth: yes
+    status_code: 200
+    validate_certs: "{{ ssl_verification }}"
+    follow_redirects: all
+    user: "{{ space_auth_user }}"
+    password: "{{ space_auth_password }}"
+    return_content: yes
+    headers:
+      Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
+  register: login

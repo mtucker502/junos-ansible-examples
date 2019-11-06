@@ -1,0 +1,89 @@
+---
+- name: SD API Example - Add SNAT Rule
+  hosts: all
+  connection: local
+  gather_facts: no
+
+  vars:
+    space_api_uri: "https://{{ ansible_host }}:{{ space_api_port }}/api"
+    space_api_login_uri : "space/user-management/login"
+    ssl_verification: no
+
+  tasks:
+    - import_role:
+        name: junos_space
+        tasks_from: login
+
+    - name: Creating SNAT Rule
+      uri:
+        url: "{{ space_api_uri }}/juniper/sd/address-management/addresses"
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        status_code: 200, 500
+        headers:
+          Accept: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;q=0.02
+          Content-Type: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;charset=UTF-8
+          Cookie: "{{ login.set_cookie }}"
+        body_format: json
+        body: >
+          {
+            "rule": {
+              "edit-version": "0",
+              "rule-group-type": "CUSTOM",
+              "translated-packet": {
+                "translated-traffic-match-type": "INTERFACE"
+              },
+              "description": "String",
+              "name": "NAT-BY-API3",
+              "services": {
+                "service-reference": {
+                  "id": "163840",
+                  "name": "Any",
+                  "is-group": "false"
+                }
+              },
+              "nat-type": "SOURCE",
+              "original-packet": {
+                "src-traffic-match-type": "ZONE",
+                "src-address": {
+                  "address-reference": {
+                    "id": "196609",
+                    "name": "Any-IPv4",
+                    "address-type": "ANY_IPV4"
+                  }
+                },
+                "dst-address": {
+                  "address-reference": {
+                    "id": "196609",
+                    "name": "Any-IPv4",
+                    "address-type": "ANY_IPV4"
+                  }
+                },
+                "src-traffic-match-value": {
+                  "src-traffic-match-value": [ "inside" ]
+                },
+                "proxy-arp-entry": {
+                  "is-overridden": "false",
+                  "state": "NOCHANGE"
+                },
+                "proxy-arp-enabled": "false",
+                "dst-traffic-match-type": "ZONE",
+                "dst-traffic-match-value": {
+                  "dst-traffic-match-value": [ "outside" ]
+                }
+              },
+              "rule-group-id": "1048579",
+              "policy-id": "1048580",
+              "rule-type": "RULE",
+              "rule-order": "3",
+              "disabled": "false",
+              "rulegroup-disabled": "false"
+            }
+          }
+        validate_certs:  "{{ ssl_verification }}"
+      register: result
+
+    - import_role:
+        name: junos_space
+        tasks_from: logout

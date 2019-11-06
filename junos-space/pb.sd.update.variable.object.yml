@@ -14,25 +14,9 @@
     VARIABLE_OBJECT_NAME: dns-object
 
   tasks:
-    - name: Login to Junos Space
-      uri:
-        url: "{{ space_api_uri }}/{{ space_api_login_uri }}"
-        method: POST
-        force_basic_auth: yes
-        status_code: 200
-        validate_certs: "{{ ssl_verification }}"
-        follow_redirects: all
-        user: "{{ space_auth_user }}"
-        password: "{{ space_auth_password }}"
-        return_content: yes
-        headers:
-          Accept: application/vnd.net.juniper.space.user-management.user-ref+json;version=1
-      register: login
-
-    - name: Print login results
-      debug:
-        var: login.json
-        verbosity: 2
+    - import_role:
+        name: junos_space
+        tasks_from: login
 
     - name: Get SD Device ID
       uri:
@@ -217,11 +201,6 @@
       debug:
         var: result.content
 
-    - name: Logout from Junos Space
-      uri:
-        url: "{{ space_api_uri }}/space/user-management/logout"
-        method: POST
-        status_code: 200
-        validate_certs: "{{ ssl_verification }}"
-        headers:
-          Cookie: "{{ login.set_cookie }}"
+    - import_role:
+        name: junos_space
+        tasks_from: logout

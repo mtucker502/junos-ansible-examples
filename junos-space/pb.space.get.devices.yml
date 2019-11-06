@@ -1,5 +1,5 @@
 ---
-- name: Space API Example - Get Active Users
+- name: Space API Example - Get Devices
   hosts: all
   connection: local
   gather_facts: no
@@ -16,12 +16,11 @@
 
     - import_role:
         name: junos_space
-        tasks_from: get_user_sessions
+        tasks_from: get_devices
 
     - name: print results
       debug:
         var: result.json
-        verbosity: 1
 
     - import_role:
         name: junos_space
