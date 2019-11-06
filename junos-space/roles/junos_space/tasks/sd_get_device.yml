@@ -1,0 +1,27 @@
+#####################################################
+# options:
+#   device_name:
+#     description:
+#       - The name of the SD device for which we should search
+#       - If left blank all SD devices are returned
+#     required: false
+#     type: str
+
+- set_fact:
+    filter: "?filter=(name%20eq%20'{{ device_name }}')"
+  when: device_name is defined
+
+- set_fact:
+    filter: ""
+  when: device_name is not defined
+
+- name: SD - Get Device 
+  uri:
+    url: "{{ space_api_uri }}/juniper/sd/device-management/devices{{ filter }}"
+    method: GET
+    return_content: yes
+    headers:
+      Accept: application/vnd.juniper.sd.device-management.devices+json;version=2;q=0.02
+      Cookie: "{{ login.set_cookie }}"
+    validate_certs:  "{{ ssl_verification }}"
+  register: result

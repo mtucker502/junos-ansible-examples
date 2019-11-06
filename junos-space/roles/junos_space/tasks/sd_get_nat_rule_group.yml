@@ -1,0 +1,24 @@
+#####################################################
+# options:
+#   policy_id:
+#     description:
+#       - The ID of the NAT policy for which rules should be retrieved
+#     required: true
+#     type: int
+#
+#   rule_group_id:
+#     description:
+#       - The ID of the NAT Rule Group for which rules should be retrieved
+#     required: true
+#     type: int
+
+- name: SD - Get NAT Rule Group
+  uri:
+    url: "{{ space_api_uri }}/juniper/sd/policy-management/nat/policies/{{ policy_id }}/rules/{{ rule_group_id }}/rules"
+    method: GET
+    return_content: yes
+    headers:
+      Accept: application/vnd.juniper.sd.policy-management.nat.rules+json;version=2;q=0.02
+      Cookie: "{{ login.set_cookie }}"
+    validate_certs:  "{{ ssl_verification }}"
+  register: result

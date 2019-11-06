@@ -18,18 +18,11 @@
         name: junos_space
         tasks_from: login
 
-    - name: Get SD Device ID
-      uri:
-        url: "{{ space_api_uri }}/juniper/sd/device-management/devices?filter=(name%20eq%20'{{ CONTEXT_DEVICE_NAME }}')"
-        method: GET
-        follow_redirects: all
-        return_content: yes
-        headers:
-          Accept: application/vnd.juniper.sd.device-management.devices+json;version=2;q=0.02
-          Cookie: "{{ login.set_cookie }}"
-        validate_certs:  "{{ ssl_verification }}"
-      register: result
-
+    - import_role:
+        name: junos_space
+        tasks_from: sd_get_device
+      vars:
+        device_name: CONTEXT_DEVICE_NAME
 
     - name: Saving SD Device ID
       set_fact:

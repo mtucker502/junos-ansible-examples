@@ -9,80 +9,65 @@
     space_api_login_uri : "space/user-management/login"
     ssl_verification: no
 
+# NAT Policy >> Rules >> Rule Group >> Rules
+
   tasks:
     - import_role:
         name: junos_space
         tasks_from: login
+    
+    - import_role:
+        name: junos_space
+        tasks_from: sd_get_nat_policy
+      vars:
+        policy_name: test_policy
+    
+    - name: Save NAT Policy ID
+      set_fact:
+        policy_id: "{{ result.json.policies.policy.0.id }}"
+    
+    - import_role:
+        name: junos_space
+        tasks_from: sd_get_nat_rules
+      vars:
+        policy_id: "{{ policy_id }}"
+    
+    - name: Save NAT Rule Group ID
+      set_fact:
+        rule_group_id: "{{ result.json['dc-nat-rules'].rule.0.id }}"
 
-    - name: Creating SNAT Rule
-      uri:
-        url: "{{ space_api_uri }}/juniper/sd/address-management/addresses"
-        method: POST
-        follow_redirects: all
-        return_content: yes
-        status_code: 200, 500
-        headers:
-          Accept: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;q=0.02
-          Content-Type: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;charset=UTF-8
-          Cookie: "{{ login.set_cookie }}"
-        body_format: json
-        body: >
-          {
-            "rule": {
-              "edit-version": "0",
-              "rule-group-type": "CUSTOM",
-              "translated-packet": {
-                "translated-traffic-match-type": "INTERFACE"
-              },
-              "description": "String",
-              "name": "NAT-BY-API3",
-              "services": {
-                "service-reference": {
-                  "id": "163840",
-                  "name": "Any",
-                  "is-group": "false"
-                }
-              },
-              "nat-type": "SOURCE",
-              "original-packet": {
-                "src-traffic-match-type": "ZONE",
-                "src-address": {
-                  "address-reference": {
-                    "id": "196609",
-                    "name": "Any-IPv4",
-                    "address-type": "ANY_IPV4"
-                  }
-                },
-                "dst-address": {
-                  "address-reference": {
-                    "id": "196609",
-                    "name": "Any-IPv4",
-                    "address-type": "ANY_IPV4"
-                  }
-                },
-                "src-traffic-match-value": {
-                  "src-traffic-match-value": [ "inside" ]
-                },
-                "proxy-arp-entry": {
-                  "is-overridden": "false",
-                  "state": "NOCHANGE"
-                },
-                "proxy-arp-enabled": "false",
-                "dst-traffic-match-type": "ZONE",
-                "dst-traffic-match-value": {
-                  "dst-traffic-match-value": [ "outside" ]
-                }
-              },
-              "rule-group-id": "1048579",
-              "policy-id": "1048580",
-              "rule-type": "RULE",
-              "rule-order": "3",
-              "disabled": "false",
-              "rulegroup-disabled": "false"
-            }
-          }
-        validate_certs:  "{{ ssl_verification }}"
-      register: result
+    - import_role:
+        name: junos_space
+        tasks_from: sd_get_nat_rule_group
+      vars:
+        rule_group_id: "{{ rule_group_id }}"
+    
+    - name: Save rule count
+      set_fact:
+        rule_count: "{{ result.json['dc-nat-rules'].total }}"
+
+    - import_role:
+        name: junos_space
+        tasks_from: sd_add_snat_rule
+      vars:
+        policy_id: "{{ policy_id }}"
+        rule_group_id: "{{ rule_group_id }}"
+        rule_order: "{{ rule_count }}" # since list is indexed at 0 we can use the count as the next available rule order #
+        rule_name: "device4"
+        rule_description: "Test"
+        src_address:
+            name: Any-IPv4
+            id: 196609
+        src_zone: trust
+        # src_service: #FIXME if left blank set to empty list
+        dst_address:
+            name: Any-IPv4
+            id: 196609
+        # dst_service:
+        dst_zone: untrust
+
+    - debug:
+        var: result
 
     - import_role:
         name: junos_space

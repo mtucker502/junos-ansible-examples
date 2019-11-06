@@ -1,0 +1,103 @@
+#####################################################
+# options:
+#   policy_id:
+#     description:
+#       - The ID of the NAT policy for which the NAT rule should be added
+#     required: true
+#     type: int
+#
+#   rule_group_id:
+#     description:
+#       - The ID of the NAT Rule Group for which NAT rule should be added
+#     required: true
+#     type: int
+#
+#   rule_order:
+#     description:
+#       - The ID of the NAT Rule Group for which NAT rule should be added
+#     required: true
+#     type: int
+#
+#   rule_name:
+#     description:
+#       - The name of the NAT Rule
+#     required: true
+#     type: str
+# 
+# rule_description
+# src_address:
+# src_zone:
+# src_service:
+# dst_address:
+# dst_service:
+# dst_zone:
+# pool_name:
+
+
+
+- name: Creating SNAT Rule
+  uri:
+    url: "{{ space_api_uri }}/juniper/sd/policy-management/nat/policies/{{ policy_id }}/rules"
+    method: POST
+    follow_redirects: all
+    return_content: yes
+    status_code: 200, 500
+    headers:
+      Accept: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;q=0.02
+      Content-Type: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;charset=UTF-8
+      Cookie: "{{ login.set_cookie }}"
+    body_format: json
+    body: >
+      {
+        "rule": {
+          "edit-version": "0",
+          "rule-group-type": "CUSTOM",
+          "translated-packet": {
+            "translated-traffic-match-type": "INTERFACE"
+          },
+          "description": "{{ rule_description }}",
+          "name": "{{ rule_name }}",
+          "services": {
+            "service-reference": []
+          },
+          "nat-type": "SOURCE",
+          "original-packet": {
+            "src-traffic-match-type": "ZONE",
+            "src-traffic-match-value": {
+              "src-traffic-match-value": [ "{{ src_zone }}" ]
+            },
+
+            "src-address": {
+              "address-reference": {
+                "id": "{{ src_address.id }}",
+                "name": "{{ src_address.name }}",
+                "address-type": "ANY_IPV4"
+              }
+            },
+            "dst-address": {
+              "address-reference": {
+                "id": "{{ dst_address.id }}",
+                "name": "{{ dst_address.name }}",
+                "address-type": "ANY_IPV4"
+              }
+            },
+            "proxy-arp-entry": {
+              "is-overridden": "false",
+              "state": "NOCHANGE"
+            },
+            "proxy-arp-enabled": "false",
+            "dst-traffic-match-type": "ZONE",
+            "dst-traffic-match-value": {
+              "dst-traffic-match-value": [ "{{ dst_zone }}" ]
+            }
+          },
+          "rule-group-id": "{{ rule_group_id }}",
+          "policy-id": "{{ policy_id }}",
+          "rule-type": "RULE",
+          "rule-order": "3",
+          "disabled": "false",
+          "rulegroup-disabled": "false"
+        }
+      }
+    validate_certs:  "{{ ssl_verification }}"
+  register: result
