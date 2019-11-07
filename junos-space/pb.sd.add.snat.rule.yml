@@ -1,4 +1,11 @@
 ---
+
+# 1) Get NAT Policy ID by Name (sd_get_nat_policy)
+# 2) Get NAT Rule Group ID by Policy ID (sd_get_nat_rules)
+# 3) Get NAT Rules by NAT Rule Group ID (sd_get_nat_rule_group)
+# 4) Save rule count (index is 0 so total count is next available index)
+# 5) Get NAT Rule by Rule ID (sd_get_nat_rule)
+
 - name: SD API Example - Add SNAT Rule
   hosts: all
   connection: local
@@ -59,11 +66,12 @@
             name: Any-IPv4
             id: 196609
         src_zone: trust
-        # src_service: #FIXME if left blank set to empty list
         dst_address:
             name: Any-IPv4
             id: 196609
-        # dst_service:
+        service:
+            name: Any
+            id: 163840
         dst_zone: untrust
 
     - debug:

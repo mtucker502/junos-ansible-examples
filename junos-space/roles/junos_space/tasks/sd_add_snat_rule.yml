@@ -24,14 +24,19 @@
 #     required: true
 #     type: str
 # 
-# rule_description
+# rule_description:
 # src_address:
+#     name:
+#     id:
 # src_zone:
-# src_service:
 # dst_address:
-# dst_service:
+#     name:
+#     id:
+# service:
+#     name:
+#     id:
 # dst_zone:
-# pool_name:
+
 
 
 
@@ -41,7 +46,7 @@
     method: POST
     follow_redirects: all
     return_content: yes
-    status_code: 200, 500
+    status_code: 200
     headers:
       Accept: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;q=0.02
       Content-Type: application/vnd.juniper.sd.policy-management.nat.rule+json;version=2;charset=UTF-8
@@ -49,55 +54,89 @@
     body_format: json
     body: >
       {
-        "rule": {
-          "edit-version": "0",
-          "rule-group-type": "CUSTOM",
-          "translated-packet": {
-            "translated-traffic-match-type": "INTERFACE"
-          },
-          "description": "{{ rule_description }}",
-          "name": "{{ rule_name }}",
-          "services": {
-            "service-reference": []
-          },
-          "nat-type": "SOURCE",
-          "original-packet": {
-            "src-traffic-match-type": "ZONE",
-            "src-traffic-match-value": {
-              "src-traffic-match-value": [ "{{ src_zone }}" ]
-            },
-
-            "src-address": {
-              "address-reference": {
-                "id": "{{ src_address.id }}",
-                "name": "{{ src_address.name }}",
-                "address-type": "ANY_IPV4"
-              }
-            },
-            "dst-address": {
-              "address-reference": {
-                "id": "{{ dst_address.id }}",
-                "name": "{{ dst_address.name }}",
-                "address-type": "ANY_IPV4"
-              }
-            },
-            "proxy-arp-entry": {
-              "is-overridden": "false",
-              "state": "NOCHANGE"
-            },
-            "proxy-arp-enabled": "false",
-            "dst-traffic-match-type": "ZONE",
-            "dst-traffic-match-value": {
-              "dst-traffic-match-value": [ "{{ dst_zone }}" ]
-            }
-          },
-          "rule-group-id": "{{ rule_group_id }}",
-          "policy-id": "{{ policy_id }}",
-          "rule-type": "RULE",
-          "rule-order": "3",
-          "disabled": "false",
-          "rulegroup-disabled": "false"
-        }
+          "rule": {
+              "disabled": false,
+              "edit-version": 0,
+              "name": "Device-1",
+              "nat-type": "SOURCE",
+              "original-packet": {
+                  "dst-address": {
+                      "address-reference": [
+                          {
+                              "id": "{{ dst_address.id }}",
+                              "name": "{{ dst_address.name }}"
+                          }
+                      ]
+                  },
+                  "dst-port-sets": {
+                      "reference": []
+                  },
+                  "dst-traffic-match-type": "ZONE",
+                  "dst-traffic-match-value": {
+                      "dst-traffic-match-value": [
+                          "{{ dst_zone }}"
+                      ]
+                  },
+                  "dst-zone-sets": {
+                      "reference": []
+                  },
+                  "proxy-arp-enabled": false,
+                  "proxy-arp-entry": {
+                      "state": "NOCHANGE"
+                  },
+                  "src-address": {
+                      "address-reference": [
+                          {
+                              "id": "{{ src_address.id }}",
+                              "name": "{{ src_address.name }}"
+                          }
+                      ]
+                  },
+                  "src-port-sets": {
+                      "reference": []
+                  },
+                  "src-traffic-match-type": "ZONE",
+                  "src-traffic-match-value": {
+                      "src-traffic-match-value": [
+                          "{{ src_zone }}"
+                      ]
+                  },
+                  "src-zone-sets": {
+                      "reference": []
+                  }
+              },
+              "policy-id": {{ policy_id }},
+              "rule-group-id": {{ rule_group_id }},
+              "rule-group-type": "CUSTOM",
+              "rule-order": {{ rule_count }},
+              "rule-type": "RULE",
+              "rulegroup-disabled": false,
+              "services": {
+                  "service-reference": [
+                      {
+                          "id": "{{ service.id }}",
+                          "is-group": false,
+                          "name": "{{ service.name }}"
+                      }
+                  ]
+              },        "translated-packet": {
+                  "egress-interface": {
+                      "egress-interface": []
+                  },
+                  "mapped-port": "",
+                  "persistent-nat-setting": {
+                      "address-mapping": false,
+                      "persistent-nat-type": "NONE"
+                  },
+                  "pool-addresses": {},
+                  "poxy-arp-entries": {
+                  },
+                  "proxy-arp-enabled": false,
+                  "translated-address": {},
+                  "translated-traffic-match-type": "NO_TRANSLATION"
+              },
+              "version": 2
+          }
       }
     validate_certs:  "{{ ssl_verification }}"
   register: result
